@@ -23,7 +23,7 @@ import xml.etree.ElementTree as ET
 # API setup
 st.set_page_config(layout="wide")
 
-api_key = "key"
+api_key = st.secrets["api_key"]
 endpoint = "https://api.openai.com/v1/chat/completions"
 headers = {
     "Authorization": f"Bearer {api_key}",
