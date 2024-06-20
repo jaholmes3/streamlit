@@ -30,7 +30,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
- S3 bucket details
+#S3 bucket details
 bucket_url = 'https://grantsgov.s3.amazonaws.com/'
 
 def list_parquet_files(bucket_url):
