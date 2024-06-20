@@ -1,28 +1,13 @@
 import streamlit as st
-import os
-import io
-#import boto3
-
 import pandas as pd
-import numpy as np
-from io import StringIO, BytesIO
-
-#import fsspec
-
-
 import requests
-from datetime import datetime, timedelta
-import zipfile
+from io import BytesIO
 import xml.etree.ElementTree as ET
 
-# import streamlit as st
-# import boto3
-# import pandas as pd
-# from io import BytesIO
-
-# API setup
+# Set page config
 st.set_page_config(layout="wide")
 
+# API setup
 api_key = st.secrets["api_key"]
 endpoint = "https://api.openai.com/v1/chat/completions"
 headers = {
@@ -30,7 +15,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-#S3 bucket details
+# S3 bucket details
 bucket_url = 'https://grantsgov.s3.amazonaws.com/'
 
 def list_parquet_files(bucket_url):
@@ -57,23 +42,6 @@ def load_parquet_from_url(url):
             return None, f"Failed to fetch file: {response.status_code}"
     except Exception as e:
         return None, str(e)
-
-
-# def load_parquet_from_s3():
-#     s3 = boto3.client('s3')
-#     bucket_name = 'grantsgov'
-#     try:
-#         response = s3.list_objects_v2(Bucket=bucket_name)
-#         parquet_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.parquet')]
-#         if not parquet_files:
-#             return None, "No Parquet files found in the bucket."
-        
-#         key = parquet_files[0]
-#         obj = s3.get_object(Bucket=bucket_name, Key=key)
-#         df = pd.read_parquet(BytesIO(obj['Body'].read()))
-#         return df, key
-#     except Exception as e:
-#         return None, str(e)
 
 def call_chat_gpt(prompt):
     data = {
@@ -125,6 +93,7 @@ def format_grant_themes_responses(responses):
     formatted_responses = []
     for response in responses:
         formatted_response = response.replace("General type of grant:", "\nGeneral type of grant:").replace("Related theme:", "\nRelated theme:")
+        formatted_response = formatted_response.replace("Suggested search terms:", "\nSuggested search terms:")
         # Remove the word "Relevant" if it's present
         formatted_response = formatted_response.replace("Relevant", "").strip()
         formatted_responses.append(formatted_response)
@@ -159,23 +128,25 @@ def main():
                 parquet_file = parquet_files[0]  # You can modify this to select the desired file
                 file_url = bucket_url + parquet_file
                 df, message = load_parquet_from_url(file_url)
-            if df is not None:
-                st.success("Data loaded successfully!")
-                df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
+                if df is not None:
+                    st.success("Data loaded successfully!")
+                    df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
 
-                today = pd.to_datetime('today').normalize()
-                future_date = today + pd.Timedelta(days=days_input)
+                    today = pd.to_datetime('today').normalize()
+                    future_date = today + pd.Timedelta(days_input)
 
-                filtered_df = df[(df['FundingInstrumentType'] == 'G') & 
-                                 (df['CloseDate'] >= today) & 
-                                 (df['CloseDate'] <= future_date)]
-                st.session_state['filtered_df'] = filtered_df
-                st.session_state['file_name'] = file_name
-                record_count = len(filtered_df)
-                st.write(f"Record count: {record_count}")
-                st.write(f"Filter applied for the next {days_input} days.")
+                    filtered_df = df[(df['FundingInstrumentType'] == 'G') & 
+                                     (df['CloseDate'] >= today) & 
+                                     (df['CloseDate'] <= future_date)]
+                    st.session_state['filtered_df'] = filtered_df
+                    st.session_state['file_name'] = message
+                    record_count = len(filtered_df)
+                    st.write(f"Record count: {record_count}")
+                    st.write(f"Filter applied for the next {days_input} days.")
+                else:
+                    st.error(f"Failed to load data: {message}")
             else:
-                st.error(f"Failed to load data: {file_name}")
+                st.error("No Parquet files found in the bucket.")
         
         if 'filtered_df' in st.session_state and not st.session_state['filtered_df'].empty:
             if st.button("Search ChatGPT"):
@@ -187,7 +158,6 @@ def main():
                         opportunity_title = row['OpportunityTitle']
                         opportunity_id = row['OpportunityID']
                         grant_url = f"https://www.grants.gov/search-results-detail/{opportunity_id}"
-                        # prompt = f"Review the following grant description related to '{search_terms}'. Confirm if it's relevant by responding with 'Yes' or 'No' or 'Relevant', and provide a concise explanation. Highlight key eligibility criteria for US grants. Opportunity ID: {opportunity_number}, Title: '{opportunity_title}':\n\n{description}"
                         prompt = f"Review the following grant description related to '{search_terms}'. Confirm if it's relevant by responding with 'Yes' or 'No' or 'Relevant', and provide a concise explanation. Highlight key eligibility criteria for US grants. Suggest potential search terms based on the grant description. Opportunity ID: {opportunity_number}, Title: '{opportunity_title}':\n\n{description}"
                         response = call_chat_gpt(prompt)
                         if "Yes" in response:
@@ -228,21 +198,6 @@ def main():
                         description = row['Description']
                         opportunity_number = row['OpportunityNumber']
                         opportunity_title = row['OpportunityTitle']
-#                         prompt = f"""
-#                         Review the following grant description. Confirm if it's relevant by responding with 'Yes', 'No', or 'Relevant', and provide a concise explanation. Identify the general type of grant and its related theme. Group the grants by their themes if possible. Please ensure your response is formatted as:
-
-#                         Opportunity Number {opportunity_number}:
-#                         General type of grant: [general type]
-#                         Related theme: [theme]
-
-#                         Please do not include any additional explanation.
-
-#                         Opportunity ID: {opportunity_number}, Title: '{opportunity_title}':
-#                         Description:
-#                         {description}
-
-#                         Review the grant and provide your analysis.
-#                         """
                         prompt = f"""
                         Review the following grant description. Confirm if it's relevant by responding with 'Yes', 'No', or 'Relevant', and provide a concise explanation. Identify the general type of grant and its related theme. Suggest potential search terms based on the grant description. Group the grants by their themes if possible. Please ensure your response is formatted as:
 
@@ -259,7 +214,6 @@ def main():
 
                         Review the grant and provide your analysis.
                         """
-
                         response = call_chat_gpt(prompt)
                         # Remove the duplicate opportunity number and the word "Relevant"
                         formatted_response = response.replace(f"Opportunity Number {opportunity_number}:", "").replace("Relevant", "").strip()
@@ -276,7 +230,7 @@ def main():
         - **Execute Script**: Click the button to execute a Python script located in the same directory as this Streamlit app.
         """)
         
-        script_name = st.text_input("Enter the script filename (e.g., process_grants_data.py):", value="process_grants_data.py")
+        script_name = st.text_input("Enter the script filename (e.g., script.py):", value="script.py")
         
         if st.button("Execute Script"):
             with st.spinner("Running script..."):
@@ -288,6 +242,14 @@ def main():
                 except Exception as e:
                     st.error(f"Error executing script: {e}")
 
+    st.markdown("""
+    ### Welcome to the Grants.Gov Data Viewer
+    Use this tool to explore upcoming grant opportunities that may be relevant based on your search criteria. 
+    - **Days Input**: Specify the number of days to look ahead for grant opportunities closing soon.
+    - **Search Terms**: Enter keywords to focus the analysis by ChatGPT on grants related to specific topics or needs.
+    - **ChatGPT Results**: Be patient. There is a status bar but it takes a few seconds for each record to be processed by ChatGPT.
+    - **Business Rules**: 'FundingInstrumentType' = G (Grants) and CloseDate.
+    """)
 
 if __name__ == "__main__":
     main()
