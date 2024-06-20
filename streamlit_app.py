@@ -154,7 +154,11 @@ def main():
         search_terms = st.text_input("Enter search terms for ChatGPT:")
         
         if st.button("Load and Display Parquet Data"):
-            df, file_name = load_parquet_from_s3()
+            parquet_files = list_parquet_files(bucket_url)
+            if parquet_files:
+                parquet_file = parquet_files[0]  # You can modify this to select the desired file
+                file_url = bucket_url + parquet_file
+                df, message = load_parquet_from_url(file_url)
             if df is not None:
                 st.success("Data loaded successfully!")
                 df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
