@@ -29,23 +29,51 @@ headers = {
     "Authorization": f"Bearer {api_key}",
     "Content-Type": "application/json"
 }
- 
 
-def load_parquet_from_s3():
-    s3 = boto3.client('s3')
-    bucket_name = 'grantsgov'
+ S3 bucket details
+bucket_url = 'https://grantsgov.s3.amazonaws.com/'
+
+def list_parquet_files(bucket_url):
     try:
-        response = s3.list_objects_v2(Bucket=bucket_name)
-        parquet_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.parquet')]
-        if not parquet_files:
-            return None, "No Parquet files found in the bucket."
-        
-        key = parquet_files[0]
-        obj = s3.get_object(Bucket=bucket_name, Key=key)
-        df = pd.read_parquet(BytesIO(obj['Body'].read()))
-        return df, key
+        response = requests.get(bucket_url)
+        if response.status_code == 200:
+            # Parse the XML response to get file names
+            root = ET.fromstring(response.content)
+            parquet_files = [content.find('Key').text for content in root.findall('.//Contents') if content.find('Key').text.endswith('.parquet')]
+            return parquet_files
+        else:
+            return []
+    except Exception as e:
+        st.error(f"Failed to list files: {str(e)}")
+        return []
+
+def load_parquet_from_url(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            df = pd.read_parquet(BytesIO(response.content))
+            return df, f"Parquet file {url} loaded successfully"
+        else:
+            return None, f"Failed to fetch file: {response.status_code}"
     except Exception as e:
         return None, str(e)
+
+
+# def load_parquet_from_s3():
+#     s3 = boto3.client('s3')
+#     bucket_name = 'grantsgov'
+#     try:
+#         response = s3.list_objects_v2(Bucket=bucket_name)
+#         parquet_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.parquet')]
+#         if not parquet_files:
+#             return None, "No Parquet files found in the bucket."
+        
+#         key = parquet_files[0]
+#         obj = s3.get_object(Bucket=bucket_name, Key=key)
+#         df = pd.read_parquet(BytesIO(obj['Body'].read()))
+#         return df, key
+#     except Exception as e:
+#         return None, str(e)
 
 def call_chat_gpt(prompt):
     data = {
