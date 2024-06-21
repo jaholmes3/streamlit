@@ -23,11 +23,16 @@ def list_parquet_files(bucket_url):
     try:
         response = requests.get(f'{bucket_url}?list-type=2')
         if response.status_code == 200:
+            st.write("XML Response:")
+            st.write(response.content.decode('utf-8'))  # Display the raw XML content for debugging
             # Parse the XML response to get file names
             root = ET.fromstring(response.content)
             parquet_files = [content.find('Key').text for content in root.findall('.//Contents') if 'v2.parquet' in content.find('Key').text]
+            st.write("Parquet Files Found:")
+            st.write(parquet_files)  # Display the list of Parquet files found for debugging
             return parquet_files
         else:
+            st.error(f"Failed to list files with status code: {response.status_code}")
             return []
     except Exception as e:
         st.error(f"Failed to list files: {str(e)}")
