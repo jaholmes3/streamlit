@@ -25,7 +25,7 @@ def list_parquet_files(bucket_url):
         if response.status_code == 200:
             # Parse the XML response to get file names
             root = ET.fromstring(response.content)
-            parquet_files = [content.find('Key').text for content in root.findall('.//Contents') if content.find('Key').text.endswith('.parquet')]
+            parquet_files = [content.find('Key').text for content in root.findall('.//Contents') if 'v2.parquet' in content.find('Key').text]
             return parquet_files
         else:
             return []
@@ -134,7 +134,7 @@ def main():
                     df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
 
                     today = pd.to_datetime('today').normalize()
-                    future_date = today + pd.Timedelta(days=days_input)
+                    future_date = today + pd.Timedelta(days_input)
 
                     filtered_df = df[(df['FundingInstrumentType'] == 'G') & 
                                      (df['CloseDate'] >= today) & 
