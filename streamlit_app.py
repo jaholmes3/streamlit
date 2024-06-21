@@ -27,7 +27,7 @@ def list_parquet_files(bucket_url):
             st.write(response.content.decode('utf-8'))  # Display the raw XML content for debugging
             # Parse the XML response to get file names
             root = ET.fromstring(response.content)
-            parquet_files = [content.find('Key').text for content in root.findall('.//Contents') if 'v2.parquet' in content.find('Key').text]
+            parquet_files = [content.find('{http://s3.amazonaws.com/doc/2006-03-01/}Key').text for content in root.findall('.//{http://s3.amazonaws.com/doc/2006-03-01/}Contents') if 'v2.parquet' in content.find('{http://s3.amazonaws.com/doc/2006-03-01/}Key').text]
             st.write("Parquet Files Found:")
             st.write(parquet_files)  # Display the list of Parquet files found for debugging
             return parquet_files
