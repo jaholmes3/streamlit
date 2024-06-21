@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import boto3
+import requests
 from io import BytesIO
+import xml.etree.ElementTree as ET
 
 # Set page config
 st.set_page_config(layout="wide")
@@ -16,23 +17,35 @@ headers = {
 
 # S3 bucket details
 bucket_name = 'grantsgov'
+bucket_url = f'https://{bucket_name}.s3.amazonaws.com'
 
-def list_parquet_files(bucket_name):
+def list_parquet_files(bucket_url):
     try:
-        s3 = boto3.client('s3')
-        response = s3.list_objects_v2(Bucket=bucket_name)
-        parquet_files = [content['Key'] for content in response.get('Contents', []) if 'v2.parquet' in content['Key']]
-        return parquet_files
+        response = requests.get(f'{bucket_url}?list-type=2')
+        if response.status_code == 200:
+            st.write("XML Response:")
+            st.write(response.content.decode('utf-8'))  # Display the raw XML content for debugging
+            # Parse the XML response to get file names
+            root = ET.fromstring(response.content)
+            parquet_files = [content.find('Key').text for content in root.findall('.//Contents') if 'v2.parquet' in content.find('Key').text]
+            st.write("Parquet Files Found:")
+            st.write(parquet_files)  # Display the list of Parquet files found for debugging
+            return parquet_files
+        else:
+            st.error(f"Failed to list files with status code: {response.status_code}")
+            return []
     except Exception as e:
         st.error(f"Failed to list files: {str(e)}")
         return []
 
-def load_parquet_from_s3(bucket_name, key):
+def load_parquet_from_url(url):
     try:
-        s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket_name, Key=key)
-        df = pd.read_parquet(BytesIO(obj['Body'].read()))
-        return df, f"Parquet file {key} loaded successfully"
+        response = requests.get(url)
+        if response.status_code == 200:
+            df = pd.read_parquet(BytesIO(response.content))
+            return df, f"Parquet file {url} loaded successfully"
+        else:
+            return None, f"Failed to fetch file: {response.status_code}"
     except Exception as e:
         return None, str(e)
 
@@ -116,10 +129,11 @@ def main():
         search_terms = st.text_input("Enter search terms for ChatGPT:")
         
         if st.button("Load and Display Parquet Data"):
-            parquet_files = list_parquet_files(bucket_name)
+            parquet_files = list_parquet_files(bucket_url)
             if parquet_files:
                 parquet_file = parquet_files[0]  # You can modify this to select the desired file
-                df, message = load_parquet_from_s3(bucket_name, parquet_file)
+                file_url = f"{bucket_url}/{parquet_file}"
+                df, message = load_parquet_from_url(file_url)
                 if df is not None:
                     st.success("Data loaded successfully!")
                     df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
