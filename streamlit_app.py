@@ -21,7 +21,7 @@ bucket_url = f'https://{bucket_name}.s3.amazonaws.com'
 
 def list_parquet_files(bucket_url):
     try:
-        response = requests.get(bucket_url)
+        response = requests.get(f'{bucket_url}?list-type=2')
         if response.status_code == 200:
             # Parse the XML response to get file names
             root = ET.fromstring(response.content)
@@ -127,14 +127,14 @@ def main():
             parquet_files = list_parquet_files(bucket_url)
             if parquet_files:
                 parquet_file = parquet_files[0]  # You can modify this to select the desired file
-                file_url = bucket_url + parquet_file
+                file_url = f"{bucket_url}/{parquet_file}"
                 df, message = load_parquet_from_url(file_url)
                 if df is not None:
                     st.success("Data loaded successfully!")
                     df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
 
                     today = pd.to_datetime('today').normalize()
-                    future_date = today + pd.Timedelta(days_input)
+                    future_date = today + pd.Timedelta(days=days_input)
 
                     filtered_df = df[(df['FundingInstrumentType'] == 'G') & 
                                      (df['CloseDate'] >= today) & 
