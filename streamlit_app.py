@@ -16,7 +16,7 @@ headers = {
 }
 
 # S3 bucket details
-bucket_name 'grantsgov'
+bucket_name = 'grantsgov'
 bucket_url = f'https://{bucket_name}.s3.amazonaws.com'
 
 def list_parquet_files(bucket_url):
