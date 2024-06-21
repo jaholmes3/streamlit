@@ -139,7 +139,7 @@ def main():
                     df['CloseDate'] = pd.to_datetime(df['CloseDate'], format='%m%d%Y', errors='coerce')
 
                     today = pd.to_datetime('today').normalize()
-                    future_date = today + pd.Timedelta(days_input)
+                    future_date = today + pd.Timedelta(days=days_input)
 
                     filtered_df = df[(df['FundingInstrumentType'] == 'G') & 
                                      (df['CloseDate'] >= today) & 
@@ -247,6 +247,15 @@ def main():
                     st.success(f"Script '{script_name}' executed successfully!")
                 except Exception as e:
                     st.error(f"Error executing script: {e}")
+
+    st.markdown("""
+    ### Welcome to the Grants.Gov Data Viewer
+    Use this tool to explore upcoming grant opportunities that may be relevant based on your search criteria. 
+    - **Days Input**: Specify the number of days to look ahead for grant opportunities closing soon.
+    - **Search Terms**: Enter keywords to focus the analysis by ChatGPT on grants related to specific topics or needs.
+    - **ChatGPT Results**: Be patient. There is a status bar but it takes a few seconds for each record to be processed by ChatGPT.
+    - **Business Rules**: 'FundingInstrumentType' = G (Grants) and CloseDate.
+    """)
 
 if __name__ == "__main__":
     main()
