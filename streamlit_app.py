@@ -227,7 +227,7 @@ def main():
                         chat_responses.append(final_response)
                     st.session_state['chatgpt_responses_grant_themes'] = chat_responses
             formatted_responses = format_grant_themes_responses(st.session_state['chatgpt_responses_grant_themes'])
-            st.text_area("ChatGPT Responses (Grant Themes):", value=formatted_responses, height=400, key="grant_themes_responses")
+            st.text_area("ChatGPT Responses (Grant Themes):", value=formatted_responses, height=800, key="grant_themes_responses")
 
     with tab4:
         st.header("Run Script Tab")
